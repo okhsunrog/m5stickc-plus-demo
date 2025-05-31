@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     std::thread::Builder::new().stack_size(10_000).spawn(|| {
         let executor = EXECUTOR.init(Executor::new());
         executor.run(|spawner| {
-            spawner.spawn(async_task())?;
+            spawner.spawn(async_task()).unwrap();
         });
     })?;
 
