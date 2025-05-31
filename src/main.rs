@@ -33,9 +33,9 @@ fn main() -> anyhow::Result<()> {
         scl_pullup_enabled: true,
         ..Default::default()
     };
-    let i2c: I2cDriver<'_> =
+    let mut i2c: I2cDriver<'_> =
         I2cDriver::new(p.i2c1, p.pins.gpio21, p.pins.gpio22, &i2c_config).unwrap();
-    init_m5stickc_plus_pmic(i2c);
+    init_m5stickc_plus_pmic(&mut i2c)?;
 
     log::info!("Starting high-prio executor");
 
@@ -57,38 +57,51 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-use axp192_dd::{
-    Axp192Blocking,
-    LdoId,
-    PekBootTime,
-    PekLongPressTime,
-    PekShutdownDuration,
-};
+// use axp192_dd::{
+//     Axp192Blocking,
+//     LdoId,
+//     PekBootTime,
+//     PekLongPressTime,
+//     PekShutdownDuration,
+// };
 
-fn init_m5stickc_plus_pmic(i2c: impl I2c) {
-    let mut axp = Axp192Blocking::new(i2c);
-    info!("Applying M5StickC-Plus AXP192 configuration...");
+fn init_m5stickc_plus_pmic<I>(i2c: &mut I) -> anyhow::Result<()>
+where
+    I: I2c,
+    I::Error: std::error::Error + Send + Sync + 'static,
+{
+    info!("reading battery voltage");
 
-    // LDO2 & LDO3 to 3.0V, enabled
-    axp.set_ldo_voltage(LdoId::Ldo2, 3000)
-        .expect("Set LDO2 voltage");
-    axp.set_ldo_voltage(LdoId::Ldo3, 3000)
-        .expect("Set LDO3 voltage");
-    axp.set_output_enable_ldo(LdoId::Ldo2, true)
-        .expect("Enable LDO2");
-    axp.set_output_enable_ldo(LdoId::Ldo3, true)
-        .expect("Enable LDO3");
+    // Enable battery voltage ADC (set bit 7 of register 0x82)
+    let mut reg82 = [0u8; 1];
+    i2c.write_read(0x34, &[0x82], &mut reg82)?;
+    info!("Initial value of register 0x82: 0x{:02X}", reg82[0]);
+    let new_reg82 = reg82[0] | 0x80;
+    i2c.write(0x34, &[0x82, new_reg82])?;
 
+    // Method 1: Read two bytes from 0x78 with auto-increment
+    let mut buffer = [0u8; 2];
+    i2c.write_read(0x34, &[0x78], &mut buffer)?;
+    info!("Method 1 - Raw values: 0x78: 0x{:02X}, 0x79: 0x{:02X}", buffer[0], buffer[1]);
+    let high1 = buffer[0];
+    let low1 = buffer[1];
+    let adc_value1 = (high1 as u16) << 4 | (low1 & 0x0F) as u16;
+    let voltage1 = (adc_value1 * 11) / 10;
 
-    // PEK settings: 128ms ON, 4s OFF, PWROK 64ms (Reg 0x36 to 0x0C)
-    axp.set_pek_settings(
-        PekBootTime::S128ms,
-        PekLongPressTime::Ms1000, // M5 default for this field seems 1s
-        false,                    // auto_shutdown_by_pwrok_en
-        true,                     // pwrok_signal_delay_64ms
-        PekShutdownDuration::S4,
-    )
-    .expect("Set PEK settings");
+    // Method 2: Read one byte from 0x78 and one from 0x79 separately
+    let mut high_byte = [0u8; 1];
+    let mut low_byte = [0u8; 1];
+    i2c.write_read(0x34, &[0x78], &mut high_byte)?;
+    i2c.write_read(0x34, &[0x79], &mut low_byte)?;
+    info!("Method 2 - Raw values: 0x78: 0x{:02X}, 0x79: 0x{:02X}", high_byte[0], low_byte[0]);
+    let high2 = high_byte[0];
+    let low2 = low_byte[0];
+    let adc_value2 = (high2 as u16) << 4 | (low2 & 0x0F) as u16;
+    let voltage2 = (adc_value2 * 11) / 10;
 
-    info!("AXP192 configured for M5StickC-Plus.");
+    // Log the results
+    info!("Voltage method 1 (auto-increment): {} mV", voltage1);
+    info!("Voltage method 2 (separate reads): {} mV", voltage2);
+    
+    Ok(())
 }

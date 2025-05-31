@@ -41,7 +41,7 @@ embedded-io-adapters = "0.6.1"
 embedded-hal-nb = "1.0.0"
 static_cell = "2.1.0"
 
-axp192-dd = { path = "../axp192-dd", features = ["log", "blocking"]}
+# axp192-dd = { path = "../axp192-dd", features = ["log", "blocking"]}
 
 [build-dependencies]
 embuild = "0.33"
