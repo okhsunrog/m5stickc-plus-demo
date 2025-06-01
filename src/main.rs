@@ -36,12 +36,7 @@ fn main() -> anyhow::Result<()> {
     let mut i2c: I2cDriver<'_> = I2cDriver::new(p.i2c1, p.pins.gpio21, p.pins.gpio22, &i2c_config)?;
     init_m5stickc_plus_pmic(&mut i2c)?;
 
-    // indicate that the device in turned on
-    // let mut led = PinDriver::output(p.pins.gpio10)?;
-    // led.set_high()?;
-
     log::info!("Starting high-prio executor");
-
     ThreadSpawnConfiguration {
         name: Some(b"async-exec-high\0"),
         priority: 7,
