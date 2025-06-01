@@ -59,10 +59,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-use axp192_dd::{
-    Axp192, AxpError, ChargeCurrentValue, Gpio0FunctionSelect, PekLongPressTime, PekPowerOnTime,
-    PekShutdownTime,
-};
+use axp192_dd::{Axp192, AxpError, ChargeCurrentValue, Gpio0FunctionSelect};
 
 #[rustfmt::skip]
 fn init_m5stickc_plus_pmic<I>(i2c: I) -> anyhow::Result<()>
