@@ -190,5 +190,8 @@ where
     let voltage_f32 = axp.get_battery_voltage_mv()?;
     info!("Battery voltage (driver): {:.0} mV", voltage_f32);
 
+    let current_f32 = axp.get_battery_charge_current_ma()?;
+    info!("Battery charge current (driver): {:.0} mA", current_f32);
+
     Ok(())
 }
