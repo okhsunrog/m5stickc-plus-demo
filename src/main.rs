@@ -64,6 +64,7 @@ use axp192_dd::{
     PekShutdownTime,
 };
 
+#[rustfmt::skip]
 fn init_m5stickc_plus_pmic<I>(i2c: I) -> anyhow::Result<()>
 where
     I: I2c,
@@ -71,9 +72,7 @@ where
     I::Error: core::fmt::Debug + Send + Sync + 'static,
 {
     let mut axp = Axp192::new(i2c);
-    axp.ll.ldo_2_and_3_voltage_setting().write(|r| {
-        r.set_ldo_2_voltage_setting(0x0C); // 3.3V
-    })?;
+    axp.ll.ldo_2_and_3_voltage_setting().write(|r| r.set_ldo_2_voltage_setting(0x0C))?; // 3.3V
     axp.ll.adc_enable_1().write(|r| {
         r.set_battery_current_adc_enable(true);
         r.set_acin_voltage_adc_enable(true);
@@ -82,30 +81,13 @@ where
         r.set_vbus_current_adc_enable(true);
         r.set_aps_voltage_adc_enable(true);
     })?;
-    axp.ll.charge_control_1().write(|r| {
-        r.set_charge_current(ChargeCurrentValue::Ma100); // 100mA charging current
-    })?;
-    axp.ll.gpio_0_ldo_voltage_setting().write(|r| {
-        r.set_voltage_setting_raw(0x0F); // 3.3V
-    })?;
-    axp.ll.gpio_0_control().write(|r| {
-        r.set_function_select(Gpio0FunctionSelect::LowNoiseLdoOutput);
-    })?;
-    axp.ll.battery_charge_high_temp_threshold().write(|r| {
-        r.set_threshold_setting_raw(0xFC); // Set high temperature threshold voltage to 3.2256V
-    })?;
-    axp.ll.backup_battery_charge_control().write(|r| {
-        r.set_backup_charge_enable(true); // Charge the RTC battery
-    })?;
+    axp.ll.charge_control_1().write(|r| r.set_charge_current(ChargeCurrentValue::Ma100))?;
+    axp.ll.gpio_0_ldo_voltage_setting().write(|r| r.set_voltage_setting_raw(0x0F))?; // 3.3V
+    axp.ll.gpio_0_control().write(|r| r.set_function_select(Gpio0FunctionSelect::LowNoiseLdoOutput))?;
+    axp.ll.battery_charge_high_temp_threshold().write(|r| r.set_threshold_setting_raw(0xFC))?; // 3.2256V
+    axp.ll.backup_battery_charge_control().write(|r| r.set_backup_charge_enable(true))?; // Charge the RTC battery
 
-    info!("AXP192 initialized using driver.");
-    info!("Reading battery voltage via driver...");
-
-    let voltage_f32 = axp.get_battery_voltage_mv()?;
-    info!("Battery voltage (driver): {:.0} mV", voltage_f32);
-
-    let current_f32 = axp.get_battery_charge_current_ma()?;
-    info!("Battery charge current (driver): {:.0} mA", current_f32);
-
+    info!("Battery voltage: {:.0} mV", axp.get_battery_voltage_mv()?);
+    info!("Charge current: {:.0} mA", axp.get_battery_charge_current_ma()?);
     Ok(())
 }
