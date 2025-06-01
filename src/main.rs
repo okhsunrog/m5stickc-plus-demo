@@ -60,25 +60,8 @@ fn main() -> anyhow::Result<()> {
 }
 
 use axp192_dd::{
-    Axp192,
-    AxpError, // Your public API enums
-    // Import generated enums directly from the crate root (where device_driver places them)
-    BackupChargeCurrentValue,
-    BackupTargetVoltageValue,
-    ChargeCurrentValue,
-    ChargeEndCurrentThresholdValue,
-    ChargeTargetVoltageValue,
-    ChgLedControlSourceSelect,
-    ChgLedFunctionSetting,
-    Gpio0FunctionSelect,
-    NoeShutdownDelayValue,
-    PekLongPressTime,
-    PekPowerOnTime,
+    Axp192, AxpError, ChargeCurrentValue, Gpio0FunctionSelect, PekLongPressTime, PekPowerOnTime,
     PekShutdownTime,
-    PwrokSignalDelay,
-    VbusCurrentLimitValue,
-    VbusPathSelectionControl,
-    VholdVoltageValue, // Add others as needed
 };
 
 fn init_m5stickc_plus_pmic<I>(i2c: I) -> anyhow::Result<()>
@@ -88,62 +71,31 @@ where
     I::Error: core::fmt::Debug + Send + Sync + 'static,
 {
     let mut axp = Axp192::new(i2c);
-
     axp.ll.ldo_2_and_3_voltage_setting().write(|r| {
-        r.set_ldo_3_voltage_setting(0x0C);
+        r.set_ldo_2_voltage_setting(0x0C); // 3.3V
     })?;
-
     axp.ll.adc_enable_1().write(|r| {
-        r.set_battery_voltage_adc_enable(true);
         r.set_battery_current_adc_enable(true);
         r.set_acin_voltage_adc_enable(true);
         r.set_acin_current_adc_enable(true);
         r.set_vbus_voltage_adc_enable(true);
         r.set_vbus_current_adc_enable(true);
         r.set_aps_voltage_adc_enable(true);
-        r.set_ts_pin_adc_enable(true);
     })?;
-
     axp.ll.charge_control_1().write(|r| {
-        r.set_charge_enable(true);
-        r.set_target_voltage(ChargeTargetVoltageValue::V420);
-        r.set_end_current_threshold(ChargeEndCurrentThresholdValue::Percent10);
-        r.set_charge_current(ChargeCurrentValue::Ma100);
+        r.set_charge_current(ChargeCurrentValue::Ma100); // 100mA charging current
     })?;
-
-    axp.ll.pek_key_parameters().write(|r| {
-        r.set_power_on_time(PekPowerOnTime::Ms128);
-        r.set_long_press_time(PekLongPressTime::S10); // Ensure S10 enum means 1.0s
-        r.set_auto_shutdown_if_pek_held_longer_than_shutdown_time(true);
-        r.set_pwrok_signal_delay(PwrokSignalDelay::Ms64);
-        r.set_shutdown_time(PekShutdownTime::S4);
-    })?;
-
     axp.ll.gpio_0_ldo_voltage_setting().write(|r| {
-        r.set_voltage_setting_raw(0x0F);
+        r.set_voltage_setting_raw(0x0F); // 3.3V
     })?;
-
     axp.ll.gpio_0_control().write(|r| {
         r.set_function_select(Gpio0FunctionSelect::LowNoiseLdoOutput);
     })?;
-
-    axp.ll.vbus_ipsout_path_management().write(|r| {
-        r.set_path_selection_override(VbusPathSelectionControl::ForcedOpen);
-    })?;
-
     axp.ll.battery_charge_high_temp_threshold().write(|r| {
-        r.set_threshold_setting_raw(0xFC);
+        r.set_threshold_setting_raw(0xFC); // Set high temperature threshold voltage to 3.2256V
     })?;
-
     axp.ll.backup_battery_charge_control().write(|r| {
-        r.set_backup_charge_enable(true);
-        r.set_backup_target_voltage(BackupTargetVoltageValue::V30);
-        r.set_backup_charge_current(BackupChargeCurrentValue::Ua200);
-    })?;
-
-    axp.ll.shutdown_bat_chg_led_control().write(|r| {
-        r.set_battery_monitoring_enable(true);
-        r.set_n_oe_shutdown_delay(NoeShutdownDelayValue::S2);
+        r.set_backup_charge_enable(true); // Charge the RTC battery
     })?;
 
     info!("AXP192 initialized using driver.");
